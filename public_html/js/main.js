@@ -1,13 +1,21 @@
+$(document).ready(function () {
+    var landingVideo = document.querySelector('#landing-video');
+    var pageSection = document.querySelector('.page-section');
+    var heading = document.querySelector('.main__heading');
+    console.log(heading);
+    if (typeof landingVideo.addTextTrack === 'undefined') {
+        $(pageSection).addClass('hide');       
+    }
+});
+
 var runs = [
     ['Major A', 'Longboarding', -43.57649, 172.65280, 1],
     ['Morgans', 'Longboarding', -43.58184, 172.71618, 2],
     ['Mt P', 'Longboarding', -43.58495, 172.72801, 3]
 ];
-
 var activeInfoWindow;
 var activePolyline;
 var marker;
-
 function initMap() {
     //Set map container and initialise map parameters
     var map = new google.maps.Map(document.getElementById('runSelector'), {
@@ -42,11 +50,11 @@ function initMap() {
 }
 
 function setRunMarkers(map) {
-    // Adds markers to the map.
-    // Marker sizes are expressed as a Size of X,Y where the origin of the image
-    // (0,0) is located in the top left of the image.
-    // Origins, anchor positions and coordinates of the marker increase in the X
-    // direction to the right and in the Y direction down.
+// Adds markers to the map.
+// Marker sizes are expressed as a Size of X,Y where the origin of the image
+// (0,0) is located in the top left of the image.
+// Origins, anchor positions and coordinates of the marker increase in the X
+// direction to the right and in the Y direction down.
     var image = {
         url: 'http://i.imgur.com/diXzcgS.png',
         // This marker is 20 pixels wide by 32 pixels high.
@@ -182,7 +190,6 @@ function clearMap() {
         activePolyline.setMap(null);
     }
 }
-;
 
 function initVideo(map, run, points, activePolyline) {
     $('#playerContainer').append('<video id="video" controls="" poster="img/placeholder/videoplachold.png"><source id="source" src="" type="video/webm"></video>');
@@ -198,7 +205,6 @@ function initVideo(map, run, points, activePolyline) {
 function removeVideo() {
     $('#video').remove();
 }
-;
 
 function createVTT(map, points) {//Only works properly if the points are recorded 1 second apart. 
     //TODO: make it so it calculates it off the tracks timestamp
