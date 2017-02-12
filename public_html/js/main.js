@@ -6,6 +6,7 @@ var runs = [
 
 var activeInfoWindow;
 var activePolyline;
+var marker;
 
 function initMap() {
     //Set map container and initialise map parameters
@@ -15,24 +16,24 @@ function initMap() {
         mapTypeId: 'terrain'
     });
     //Create an info window object and specify the map it belongs to
-    setMarkers(map);
+    setRunMarkers(map);
     // Try HTML5 geolocation. Check if browser supports geolocation
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
+        navigator.geolocation.getCurrentPosition(function (position) {
             var pos = {
                 lat: position.coords.latitude,
                 lng: position.coords.longitude
-            };            
+            };
             map.setCenter(pos);
             map.setZoom(11);
-        }, function() {
+        }, function () {
             handleLocationError(true, infoWindow, map.getCenter());
         });
     } else {
         // Browser doesn't support Geolocation
         handleLocationError(false, infoWindow, map.getCenter());
-    }    
-    google.maps.event.addDomListener(window, "resize", function() {
+    }
+    google.maps.event.addDomListener(window, "resize", function () {
         var center = map.getCenter();
         google.maps.event.trigger(map, "resize");
         map.setCenter(center);
@@ -40,7 +41,7 @@ function initMap() {
     return map;
 }
 
-function setMarkers(map) {
+function setRunMarkers(map) {
     // Adds markers to the map.
     // Marker sizes are expressed as a Size of X,Y where the origin of the image
     // (0,0) is located in the top left of the image.
@@ -64,7 +65,7 @@ function setMarkers(map) {
     };
     for (var i = 0; i < runs.length; i++) {
         var run = runs[i];
-        var marker = new google.maps.Marker({
+        var runMarker = new google.maps.Marker({
             position: {lat: run[2], lng: run[3]},
             map: map,
             icon: image,
@@ -73,11 +74,11 @@ function setMarkers(map) {
             zIndex: run[4]
         });
 //        marker.addListener('click', getGPX);
-        createInfoWindow(map, marker, run);
+        createInfoWindow(map, runMarker, run);
     }
 }
 
-function createInfoWindow(map, marker, run) {
+function createInfoWindow(map, runMarker, run) {
     var contentString =
             '<div id="content">' +
             '<div id="siteNotice">' +
@@ -91,13 +92,28 @@ function createInfoWindow(map, marker, run) {
     var infowindow = new google.maps.InfoWindow({
         content: contentString
     });
-    marker.addListener('click', function() {
+    runMarker.addListener('click', function () {
+        stopRun();
         activeInfoWindow = infowindow;
-        infowindow.open(map, marker);
-        map.setCenter(marker.getPosition());
+        infowindow.open(map, runMarker);
+        map.setCenter(runMarker.getPosition());
         map.setZoom(17);
         var activePolyLine = initRunPlayback(map, run, activeInfoWindow);
     });
+}
+
+function stopRun() {
+    var video = document.querySelector("#video");
+    if (video) {
+        video.pause();
+        var source = document.getElementById('source');
+        source.setAttribute('src', '');
+        video.load();
+    }
+    if (activeInfoWindow) {
+        activeInfoWindow.close();
+    }
+    clearMap();
 }
 
 function initRunPlayback(map, run, activeInfoWindow) {
@@ -107,9 +123,9 @@ function initRunPlayback(map, run, activeInfoWindow) {
         type: "GET",
         url: url,
         dataType: "xml",
-        success: function(xml) {
+        success: function (xml) {
             var bounds = new google.maps.LatLngBounds();
-            $(xml).find("trkpt").each(function() {
+            $(xml).find("trkpt").each(function () {
                 var lat = $(this).attr("lat");
                 var lon = $(this).attr("lon");
                 var children = ($(this).children());
@@ -121,8 +137,12 @@ function initRunPlayback(map, run, activeInfoWindow) {
             });
             activePolyline = plotRun(map, points, bounds);
             var button = document.getElementById('play-button-' + run[0]);
-            $(button).click(function() {
+            $(button).click(function () {
                 activeInfoWindow.close();
+                if ($('#video')) {
+                    removeVideo();
+                }
+                ;
                 initVideo(map, run, points, activePolyline);
             });
         }
@@ -142,7 +162,7 @@ function plotRun(map, points, bounds) {
         strokeColor: "#e20613",
         strokeOpacity: .7,
         strokeWeight: 4
-    }); 
+    });
     marker = new google.maps.Marker({
         position: new google.maps.LatLng(points[0].lat, points[0].lng),
         map: map,
@@ -154,8 +174,18 @@ function plotRun(map, points, bounds) {
     return path;
 }
 
-function initVideo(map, run, points, path) {
-//    var playerContainer = document.getElementById('playerContainer');
+function clearMap() {
+    if (marker) {
+        marker.setMap(null);
+    }
+    if (activePolyline) {
+        activePolyline.setMap(null);
+    }
+}
+;
+
+function initVideo(map, run, points, activePolyline) {
+    $('#playerContainer').append('<video id="video" controls="" poster="img/placeholder/videoplachold.png"><source id="source" src="" type="video/webm"></video>');
     var video = document.getElementById('video');
     var source = document.getElementById('source');
     var path = 'video/' + run[0] + '.MP4';
@@ -163,16 +193,18 @@ function initVideo(map, run, points, path) {
     video.load();
     createVTT(map, points);
     video.play();
-    video.onended = function(){
-        marker.setMap(null);
-        activePolyline.setMap(null);
-    };
 }
+
+function removeVideo() {
+    $('#video').remove();
+}
+;
 
 function createVTT(map, points) {//Only works properly if the points are recorded 1 second apart. 
     //TODO: make it so it calculates it off the tracks timestamp
-    var video = document.getElementById('video');    
-    var track;    
+    var video = document.getElementById('video');
+    var track;
+//    track = $(video).append('<track kind="metadata" label="gps" srclang="en">');
     track = video.addTextTrack('metadata', 'gps', 'en');
     track.mode = 'hidden';
     //loop through points array
@@ -186,9 +218,9 @@ function createVTT(map, points) {//Only works properly if the points are recorde
     moveMarker(map, video);
 }
 
-function moveMarker(map, video) {    
+function moveMarker(map, video) {
     var textTrack = video.textTracks[0];
-    textTrack.oncuechange = function(event) {
+    textTrack.oncuechange = function (event) {
         var cue = this.activeCues[0];
         if (typeof cue === 'undefined') {// escape function if cue isnt defined & wait for the next cue
             return;
@@ -197,13 +229,12 @@ function moveMarker(map, video) {
         var point = JSON.parse(cue.text);
         //use the object created from the cue to create a google maps latlng object
         var newLatLng = new google.maps.LatLng(point.lat, point.lng);
-        if (!map.getBounds().contains(newLatLng)) {
-            map.setCenter(newLatLng);
-        }
+//        if (!map.getBounds().contains(newLatLng)) {
+//            map.setCenter(newLatLng);
+//        }
         //get old marker position
         var oldLatLng = marker.getPosition();
         //set new marker position
         marker.setPosition(newLatLng);
     };
 }
-
